@@ -11,11 +11,15 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
-    "node-fetch": "^3.2.0"
+    "async-exit-hook": "^2.0.1",
+    "node-fetch": "^3.2.0",
+    "prompts": "^2.4.2",
+    "prompts-helpers": "^1.0.0",
+    "when-exit": "^1.0.0"
   },
   "devDependencies": {
-    "typescript": "^4.5.5",
+    "@types/node": "^17.0.18",
     "discord-api-types": "^0.27.1",
-    "@types/node": "^17.0.18"
+    "typescript": "^4.5.5"
   }
 }

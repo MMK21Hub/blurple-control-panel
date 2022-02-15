@@ -1,14 +1,15 @@
 import fetch from "node-fetch"
 import { readFile, writeFile } from "fs/promises"
+import { writeFileSync } from "fs"
+import onProcessExit from "when-exit"
 
 type HTTPMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH"
-type HTTPMethodWithData = "POST" | "PUT" | "DELETE" | "PATCH"
 
 interface LocalAccount {
   name: string
   id: string
   token: string
-  aliases: string[]
+  aliases?: string[]
 }
 
 class DiscordClient {
@@ -23,7 +24,7 @@ class DiscordClient {
     const requestOptions: RequestInit = {}
 
     if (data) {
-      requestOptions.headers["Content-Type"] = "application/jsons"
+      requestOptions.headers["Content-Type"] = "application/json"
       requestOptions.body = JSON.stringify(data)
     }
 
@@ -52,9 +53,54 @@ async function loadAccountsFile() {
     }
   )
 
-  return JSON.parse(fileContents) as LocalAccount[]
+  try {
+    return JSON.parse(fileContents) as LocalAccount[]
+  } catch {
+    console.warn(`Contents of file ${accountsFilePath} is not valid JSON`)
+    return []
+  }
 }
 
-const accountsFilePath = "accounts.json"
+function flushAccountsFile() {
+  console.log(`Saving ${accountsFilePath}...`)
+  writeFileSync(accountsFilePath, JSON.stringify(accountsDatabase))
+  console.log("Done!")
+  // await writeFile(accountsFilePath, JSON.stringify(accountsDatabase))
+  // console.log("done")
+}
 
+function handleProcessExit() {
+  console.log("Exiting")
+  process.once("uncaughtException", () => {
+    flushAccountsFile()
+    process.exit(0)
+  })
+  throw new Error()
+}
+
+console.log("Loading account database file...")
+
+const accountsFilePath = "accounts.json"
 const accountsDatabase = await loadAccountsFile()
+
+accountsDatabase.push({ id: "ss", name: "", token: "" })
+// onProcessExit(async () => {
+//   await flushAccountsFile()
+//   console.log("Exiting!")
+// })
+// // flushAccountsFile()
+
+// const exitEvents = [
+//   `exit`,
+//   `SIGINT`,
+//   `SIGUSR1`,
+//   `SIGUSR2`,
+//   `uncaughtException`,
+//   `SIGTERM`,
+// ]
+// exitEvents.forEach((eventName) =>
+//   process.once(eventName, () => handleProcessExit)
+// )
+
+onProcessExit(flushAccountsFile)
+// handleProcessExit()

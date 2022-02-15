@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
-    "module": "NodeNext",
+    "module": "ESNext",
     "target": "ESNext",
-    "lib": ["ES2021"]
+    "lib": ["ES2021"],
+    "moduleResolution": "Node"
   },
   "exclude": ["node_modules"]
 }
