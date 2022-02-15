@@ -6,5 +6,11 @@
   "author": "MMK21#2121",
   "license": "MIT",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "typescript": "^4.5.5"
+  }
 }
