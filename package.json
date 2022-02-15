@@ -1,0 +1,10 @@
+{
+  "name": "blurple-control-panel",
+  "version": "1.0.0",
+  "description": "A CLI tool to control an army of Discord accounts",
+  "main": "main.js",
+  "author": "MMK21#2121",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}
