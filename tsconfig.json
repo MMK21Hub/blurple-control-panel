@@ -3,7 +3,8 @@
     "module": "ESNext",
     "target": "ESNext",
     "lib": ["ES2021"],
-    "moduleResolution": "Node"
+    "moduleResolution": "Node",
+    "skipLibCheck": true
   },
   "exclude": ["node_modules"]
 }
