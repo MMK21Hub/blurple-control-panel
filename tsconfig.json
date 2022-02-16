@@ -5,7 +5,9 @@
     "lib": ["ES2021"],
     "moduleResolution": "Node",
     "skipLibCheck": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "inlineSourceMap": true,
+    "inlineSources": true
   },
   "exclude": ["node_modules"]
 }
