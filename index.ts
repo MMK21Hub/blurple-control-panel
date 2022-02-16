@@ -2,6 +2,7 @@ import fetch from "node-fetch"
 import onProcessExit from "when-exit"
 import { readFile, writeFile } from "fs/promises"
 import { writeFileSync } from "fs"
+import prompts from "prompts"
 
 type HTTPMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH"
 
@@ -72,3 +73,13 @@ console.log("Loading account database file...")
 const accountsFilePath = "accounts.json"
 const accountsDatabase = await loadAccountsFile()
 onProcessExit(flushAccountsFile)
+
+const { action } = await prompts({
+  name: "action",
+  message: "Chose an action...",
+  type: "select",
+  instructions: false,
+  choices: [{ title: "Add new account" }],
+})
+
+console.log(action)

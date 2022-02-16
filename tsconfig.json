@@ -4,7 +4,8 @@
     "target": "ESNext",
     "lib": ["ES2021"],
     "moduleResolution": "Node",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true
   },
   "exclude": ["node_modules"]
 }
