@@ -4,6 +4,7 @@ import { readFile, writeFile } from "fs/promises"
 import { writeFileSync } from "fs"
 import prompts from "prompts"
 import { assert } from "@sindresorhus/is"
+import chalk from "chalk"
 
 type HTTPMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH"
 
@@ -96,11 +97,14 @@ async function showAccountsList() {
     message: "Accounts",
     type: "select",
     hint: "Select an account to view info, or hit esc to go back",
+    limit: 20,
     choices: [],
   }
   accountsDatabase.forEach((account) => {
     assert.array(promptOptions.choices)
-    const accountListItem = `${account.name}`
+    let accountListItem =
+      `${account.name}` +
+      (account.aliases ? ` (${account.aliases.join(", ")})` : "")
     promptOptions.choices.push({ title: accountListItem, value: account.id })
   })
 
