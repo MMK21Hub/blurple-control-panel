@@ -1,4 +1,4 @@
-import fetch from "node-fetch"
+import fetch, { Headers } from "node-fetch"
 import onProcessExit from "when-exit"
 import { readFile, writeFile } from "fs/promises"
 import { writeFileSync } from "fs"
@@ -23,7 +23,7 @@ interface ActionChoice extends prompts.Choice {
 
 class DiscordClient {
   baseEndpoint = "https://discord.com/api/v9/"
-  token: string
+  token
 
   async apiRequest<Res extends any, Body extends any = never>(
     path: string,
@@ -31,9 +31,10 @@ class DiscordClient {
     data?: Body
   ): Promise<Res> {
     const requestOptions: RequestInit = {}
+    requestOptions.headers = new Headers()
 
     if (data) {
-      requestOptions.headers["Content-Type"] = "application/json"
+      requestOptions.headers.append("Content-Type", "application/json")
       requestOptions.body = JSON.stringify(data)
     }
 
@@ -44,7 +45,7 @@ class DiscordClient {
     return responseData
   }
 
-  constructor(token) {
+  constructor(token: string) {
     this.token = token
   }
 }
