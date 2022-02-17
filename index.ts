@@ -5,6 +5,7 @@ import { writeFileSync } from "fs"
 import prompts from "prompts"
 import { assert } from "@sindresorhus/is"
 import chalk from "chalk"
+import promptsHelpers from "prompts-helpers"
 
 type HTTPMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH"
 
@@ -47,6 +48,13 @@ class DiscordClient {
   }
 }
 
+function sanitizeToken(token: string) {
+  return token
+    .split(".")
+    .map((value, i) => (i > 1 ? value.replace(/./g, "*") : value))
+    .join(".")
+}
+
 async function loadAccountsFile() {
   const fileContents = await readFile(accountsFilePath, "utf-8").catch(
     async (err) => {
@@ -75,25 +83,34 @@ function flushAccountsFile() {
   console.log("Exiting!")
 }
 
-async function promptForAction() {
+function getAccountFromDatabase(id: string) {
+  const matchingAccounts = accountsDatabase.filter(
+    (account) => account.id === id
+  )
+  if (matchingAccounts.length > 1)
+    throw new Error(
+      "Found multiple accounts with the same ID in the database: " + id
+    )
+  return matchingAccounts ? matchingAccounts[0] : null
+}
+
+async function initialActionPrompt() {
   const actions: prompts.Choice[] = [
     { title: "View accounts", value: showAccountsList },
   ]
 
-  const { action } = await prompts({
+  await prompts({
     name: "action",
-    message: "Choose an action",
+    message: "Blurple Control Panel",
     type: "select",
     instructions: false,
     choices: actions,
-  })
-
-  await action()
+  }).then(async ({ action }) => await action())
 }
 
 async function showAccountsList() {
   const promptOptions: prompts.PromptObject<string> = {
-    name: "accounts",
+    name: "account",
     message: "Accounts",
     type: "select",
     hint: "Select an account to view info, or hit esc to go back",
@@ -109,7 +126,46 @@ async function showAccountsList() {
   })
 
   console.clear()
-  await prompts(promptOptions)
+  await prompts(promptOptions).then(async ({ account: id }) => {
+    await showAccountInfo(id)
+  })
+}
+
+async function showAccountInfo(id: string) {
+  const account = getAccountFromDatabase(id)
+  console.clear()
+  console.log(chalk.cyan("Username: ") + account.name)
+  console.log(chalk.cyan("User ID:  ") + account.id)
+  console.log(chalk.cyan("Token:    ") + sanitizeToken(account.token))
+  if (account.aliases)
+    console.log("\nAKA " + chalk.dim(account.aliases.join(", ")))
+  console.log()
+
+  actionPrompt({ Nope: () => {} })
+}
+
+async function actionPrompt(
+  actions: Record<string, () => void>,
+  title: string = "Actions",
+  hint?: string
+) {
+  const choices: prompts.Choice[] = []
+
+  for (const actionName in actions) {
+    choices.push({
+      title: actionName,
+      value: actions[actionName],
+    })
+  }
+
+  await prompts({
+    name: "action",
+    message: title,
+    type: "select",
+    instructions: false,
+    hint,
+    choices,
+  })
 }
 
 console.log("Loading account database file...")
@@ -118,4 +174,4 @@ const accountsFilePath = "accounts.json"
 const accountsDatabase = await loadAccountsFile()
 onProcessExit(flushAccountsFile)
 
-await promptForAction()
+await initialActionPrompt()
