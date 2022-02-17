@@ -6,6 +6,7 @@ import prompts from "prompts"
 import { assert } from "@sindresorhus/is"
 import chalk from "chalk"
 import promptsHelpers from "prompts-helpers"
+import { clear } from "console"
 
 type HTTPMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH"
 
@@ -94,18 +95,11 @@ function getAccountFromDatabase(id: string) {
   return matchingAccounts ? matchingAccounts[0] : null
 }
 
-async function initialActionPrompt() {
-  const actions: prompts.Choice[] = [
-    { title: "View accounts", value: showAccountsList },
-  ]
-
-  await prompts({
-    name: "action",
-    message: "Blurple Control Panel",
-    type: "select",
-    instructions: false,
-    choices: actions,
-  }).then(async ({ action }) => await action())
+function initialActionPrompt() {
+  return actionPrompt(
+    { "View accounts": showAccountsList },
+    { clear: true, title: "Blurple Control Panel" }
+  )
 }
 
 async function showAccountsList() {
@@ -127,18 +121,23 @@ async function showAccountsList() {
 
   console.clear()
   await prompts(promptOptions).then(async ({ account: id }) => {
-    await showAccountInfo(id)
+    id ? await showAccountInfo(id) : initialActionPrompt()
   })
 }
 
 async function showAccountInfo(id: string) {
   const account = getAccountFromDatabase(id)
+  if (!account)
+    throw new Error("Cannot show information for a non-existent account")
+
   console.clear()
-  console.log(chalk.cyan("Username: ") + account.name)
-  console.log(chalk.cyan("User ID:  ") + account.id)
-  console.log(chalk.cyan("Token:    ") + sanitizeToken(account.token))
-  if (account.aliases)
-    console.log("\nAKA " + chalk.dim(account.aliases.join(", ")))
+  console.log(chalk.bold(account.name))
+  account.aliases?.forEach((alias) => {
+    console.log(chalk.dim(`AKA ${alias}`))
+  })
+  console.log()
+  console.log(chalk.cyan("User ID: ") + account.id)
+  console.log(chalk.cyan("Token:   ") + sanitizeToken(account.token))
   console.log()
 
   actionPrompt({ Nope: () => {} })
@@ -146,11 +145,17 @@ async function showAccountInfo(id: string) {
 
 async function actionPrompt(
   actions: Record<string, () => void>,
-  title: string = "Actions",
-  hint?: string
+  options: {
+    title?: string
+    hint?: string
+    clear?: boolean
+  } = {}
 ) {
-  const choices: prompts.Choice[] = []
+  options.title ??= "Actions"
+  options.clear ??= false
+  options.hint ??= "Choose an action, or hit Esc to go back"
 
+  const choices: prompts.Choice[] = []
   for (const actionName in actions) {
     choices.push({
       title: actionName,
@@ -158,14 +163,15 @@ async function actionPrompt(
     })
   }
 
+  if (options.clear) console.clear()
   await prompts({
     name: "action",
-    message: title,
+    message: options.title,
     type: "select",
     instructions: false,
-    hint,
+    hint: options.hint,
     choices,
-  })
+  }).then(async (res) => await res.action?.())
 }
 
 console.log("Loading account database file...")
