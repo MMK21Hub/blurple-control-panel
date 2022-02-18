@@ -50,11 +50,25 @@ class DiscordClient {
   }
 }
 
+function emptyCallback(...args: unknown[]) {
+  return
+}
+
 function sanitizeToken(token: string) {
   return token
     .split(".")
     .map((value, i) => (i > 1 ? value.replace(/./g, "*") : value))
     .join(".")
+}
+
+function promptWithEscape(
+  question: prompts.PromptObject<string>,
+  onEscape?: () => void
+) {
+  return prompts(question).then((res) => {
+    if (res[question.name.toString()] === undefined) return Promise.reject(0)
+    return res
+  })
 }
 
 async function loadAccountsFile() {
@@ -100,7 +114,7 @@ function initialActionPrompt() {
   return actionPrompt(
     { "View accounts": showAccountsList },
     { clear: true, title: "Blurple Control Panel" }
-  )
+  ).catch()
 }
 
 async function showAccountsList() {
@@ -165,7 +179,7 @@ async function actionPrompt(
   }
 
   if (options.clear) console.clear()
-  await prompts({
+  return await prompts({
     name: "action",
     message: options.title,
     type: "select",
