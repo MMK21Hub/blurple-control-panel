@@ -3,10 +3,11 @@ import onProcessExit from "when-exit"
 import { readFile, writeFile } from "fs/promises"
 import { writeFileSync } from "fs"
 import prompts from "prompts"
-import { assert } from "@sindresorhus/is"
+import is, { assert } from "@sindresorhus/is"
 import chalk from "chalk"
 import promptsHelpers from "prompts-helpers"
-import { clear } from "console"
+
+console.clear = emptyCallback
 
 type HTTPMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH"
 
@@ -61,11 +62,9 @@ function sanitizeToken(token: string) {
     .join(".")
 }
 
-function promptWithEscape(
-  question: prompts.PromptObject<string>,
-  onEscape?: () => void
-) {
+function promptWithEscape(question: prompts.PromptObject<string>) {
   return prompts(question).then((res) => {
+    console.log("Prompt done")
     if (res[question.name.toString()] === undefined) return Promise.reject(0)
     return res
   })
@@ -117,7 +116,7 @@ function initialActionPrompt() {
   ).catch()
 }
 
-async function showAccountsList() {
+async function showAccountsList(): Promise<void> {
   const promptOptions: prompts.PromptObject<string> = {
     name: "account",
     message: "Accounts",
@@ -135,8 +134,11 @@ async function showAccountsList() {
   })
 
   console.clear()
-  await prompts(promptOptions).then(async ({ account: id }) => {
-    id ? await showAccountInfo(id) : initialActionPrompt()
+  return await promptWithEscape(promptOptions).then(async ({ account: id }) => {
+    await showAccountInfo(id).catch(() => {
+      console.log("Going back")
+      return showAccountsList()
+    })
   })
 }
 
@@ -186,7 +188,19 @@ async function actionPrompt(
     instructions: false,
     hint: options.hint,
     choices,
-  }).then(async (res) => await res.action?.())
+  })
+    .then((res) => {
+      const returnedValue = res.action?.()
+      if (is.promise(returnedValue)) {
+        // Take the user back to this actionPrompt if they hit esc
+        returnedValue.catch(() => {
+          console.log("It has been caught!")
+          actionPrompt(actions, options)
+        })
+      }
+      return returnedValue
+    })
+    .catch(console.log)
 }
 
 console.log("Loading account database file...")
