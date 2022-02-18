@@ -63,11 +63,14 @@ function sanitizeToken(token: string) {
 }
 
 function promptWithEscape(question: prompts.PromptObject<string>) {
-  return prompts(question).then((res) => {
+  const promptPromise = prompts(question)
+  promptPromise.then((res) => {
     console.log("Prompt done")
-    if (res[question.name.toString()] === undefined) return Promise.reject(0)
+    if (res[question.name.toString()] === undefined) return Promise.reject(0) //.catch(console.warn)
     return res
   })
+  console.log("Should be rejected: ", promptPromise)
+  return promptPromise
 }
 
 async function loadAccountsFile() {
@@ -116,7 +119,7 @@ function initialActionPrompt() {
   ).catch()
 }
 
-async function showAccountsList(): Promise<void> {
+function showAccountsList(): Promise<void | prompts.Answers<string>> {
   const promptOptions: prompts.PromptObject<string> = {
     name: "account",
     message: "Accounts",
@@ -134,12 +137,18 @@ async function showAccountsList(): Promise<void> {
   })
 
   console.clear()
-  return await promptWithEscape(promptOptions).then(async ({ account: id }) => {
+  const result = promptWithEscape(promptOptions)
+  console.log(result)
+  result.then(async ({ account: id }) => {
     await showAccountInfo(id).catch(() => {
       console.log("Going back")
-      return showAccountsList()
+      return showAccountsList() // HERE
     })
   })
+  // .catch(console.warn)
+
+  console.log("Returning from showAccountsList()", result)
+  return result
 }
 
 async function showAccountInfo(id: string) {
