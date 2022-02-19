@@ -62,15 +62,16 @@ function sanitizeToken(token: string) {
     .join(".")
 }
 
-function promptWithEscape(question: prompts.PromptObject<string>) {
-  const promptPromise = prompts(question)
-  promptPromise.then((res) => {
-    console.log("Prompt done")
-    if (res[question.name.toString()] === undefined) return Promise.reject(0) //.catch(console.warn)
-    return res
+function promptWithEscape(
+  question: prompts.PromptObject<string>
+): Promise<prompts.Answers<string>> {
+  return new Promise((resolve, reject) => {
+    const promptPromise = prompts(question)
+    promptPromise.then((res) => {
+      console.log("Prompt done")
+      res[question.name.toString()] === undefined ? reject(0) : resolve(res)
+    })
   })
-  console.log("Should be rejected: ", promptPromise)
-  return promptPromise
 }
 
 async function loadAccountsFile() {
@@ -112,11 +113,14 @@ function getAccountFromDatabase(id: string) {
   return matchingAccounts ? matchingAccounts[0] : null
 }
 
-function initialActionPrompt() {
-  return actionPrompt(
+async function initialActionPrompt() {
+  const result = await actionPrompt(
     { "View accounts": showAccountsList },
     { clear: true, title: "Blurple Control Panel" }
-  ).catch()
+  ).catch(console.warn)
+
+  console.log(result)
+  return result
 }
 
 function showAccountsList(): Promise<void | prompts.Answers<string>> {
@@ -137,18 +141,12 @@ function showAccountsList(): Promise<void | prompts.Answers<string>> {
   })
 
   console.clear()
-  const result = promptWithEscape(promptOptions)
-  console.log(result)
-  result.then(async ({ account: id }) => {
-    await showAccountInfo(id).catch(() => {
+  return promptWithEscape(promptOptions).then(({ account: id }) => {
+    showAccountInfo(id).catch(() => {
       console.log("Going back")
-      return showAccountsList() // HERE
+      showAccountsList() // HERE
     })
   })
-  // .catch(console.warn)
-
-  console.log("Returning from showAccountsList()", result)
-  return result
 }
 
 async function showAccountInfo(id: string) {
@@ -200,11 +198,13 @@ async function actionPrompt(
   })
     .then((res) => {
       const returnedValue = res.action?.()
+      console.log("Action, returned value", res.action.name, returnedValue)
       if (is.promise(returnedValue)) {
         // Take the user back to this actionPrompt if they hit esc
         returnedValue.catch(() => {
           console.log("It has been caught!")
-          actionPrompt(actions, options)
+          actionPrompt(actions, options) //.catch(console.warn)
+          console.log("New actionPrompt has been called")
         })
       }
       return returnedValue
@@ -218,4 +218,6 @@ const accountsFilePath = "accounts.json"
 const accountsDatabase = await loadAccountsFile()
 onProcessExit(flushAccountsFile)
 
-await initialActionPrompt()
+// await initialActionPrompt()
+
+await showAccountsList().catch(console.log)
