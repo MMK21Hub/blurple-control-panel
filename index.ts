@@ -113,7 +113,7 @@ function initialActionPrompt() {
   return actionPrompt(
     { "View accounts": showAccountsList },
     { clear: true, title: "Blurple Control Panel" }
-  )
+  ).catch(emptyCallback) // This shouldn't really be happening, but it is
 }
 
 function showAccountsList(): Promise<void | prompts.Answers<string>> {
@@ -139,7 +139,7 @@ function showAccountsList(): Promise<void | prompts.Answers<string>> {
   })
 }
 
-async function showAccountInfo(id: string) {
+function showAccountInfo(id: string) {
   const account = getAccountFromDatabase(id)
   if (!account)
     throw new Error("Cannot show information for a non-existent account")
@@ -154,7 +154,7 @@ async function showAccountInfo(id: string) {
   console.log(chalk.cyan("Token:   ") + sanitizeToken(account.token))
   console.log()
 
-  actionPrompt({ Nope: () => {} })
+  return actionPrompt({ Nope: () => {} })
 }
 
 async function actionPrompt(
@@ -185,16 +185,14 @@ async function actionPrompt(
     instructions: false,
     hint: options.hint,
     choices,
+  }).then((res) => {
+    const returnedValue = res.action?.()
+    if (is.promise(returnedValue)) {
+      // Take the user back to this actionPrompt if they hit esc
+      returnedValue.catch(() => actionPrompt(actions, options))
+    }
+    return returnedValue
   })
-    .then((res) => {
-      const returnedValue = res.action?.()
-      if (is.promise(returnedValue)) {
-        // Take the user back to this actionPrompt if they hit esc
-        returnedValue.catch(() => actionPrompt(actions, options))
-      }
-      return returnedValue
-    })
-    .catch(emptyCallback) // This shouldn't really be happening, but it is
 }
 
 console.log("Loading account database file...")
