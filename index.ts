@@ -6,6 +6,8 @@ import prompts from "prompts"
 import is, { assert } from "@sindresorhus/is"
 import chalk from "chalk"
 
+console.clear = emptyCallback
+
 type HTTPMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH"
 
 interface LocalAccount {
@@ -113,7 +115,7 @@ function initialActionPrompt() {
   return actionPrompt(
     { "View accounts": showAccountsList },
     { clear: true, title: "Blurple Control Panel" }
-  ).catch(emptyCallback) // This shouldn't really be happening, but it is
+  )
 }
 
 function showAccountsList(): Promise<void | prompts.Answers<string>> {
@@ -178,21 +180,21 @@ async function actionPrompt(
   }
 
   if (options.clear) console.clear()
-  return await prompts({
+
+  const res = await prompts({
     name: "action",
     message: options.title,
     type: "select",
     instructions: false,
     hint: options.hint,
     choices,
-  }).then((res) => {
-    const returnedValue = res.action?.()
-    if (is.promise(returnedValue)) {
-      // Take the user back to this actionPrompt if they hit esc
-      returnedValue.catch(() => actionPrompt(actions, options))
-    }
-    return returnedValue
   })
+
+  const returnedValue = res.action?.()
+  if (is.promise(returnedValue)) {
+    // Take the user back to this actionPrompt if they hit esc
+    returnedValue.catch(() => actionPrompt(actions, options))
+  }
 }
 
 console.log("Loading account database file...")
