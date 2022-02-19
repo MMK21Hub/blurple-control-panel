@@ -116,7 +116,7 @@ function initialActionPrompt() {
   return actionPrompt(
     { "View accounts": showAccountsList },
     { clear: true, title: "Blurple Control Panel" }
-  )
+  ).catch(() => 1)
 }
 
 function showAccountsList(): Promise<void | prompts.Answers<string>> {
@@ -188,16 +188,14 @@ async function actionPrompt(
     instructions: false,
     hint: options.hint,
     choices,
+  }).then((res) => {
+    const returnedValue = res.action?.()
+    if (is.promise(returnedValue)) {
+      // Take the user back to this actionPrompt if they hit esc
+      returnedValue.catch(() => actionPrompt(actions, options))
+    }
+    return returnedValue
   })
-    .then((res) => {
-      const returnedValue = res.action?.()
-      if (is.promise(returnedValue)) {
-        // Take the user back to this actionPrompt if they hit esc
-        returnedValue.catch(() => actionPrompt(actions, options))
-      }
-      return returnedValue
-    })
-    .catch(console.log)
 }
 
 console.log("Loading account database file...")
@@ -206,6 +204,4 @@ const accountsFilePath = "accounts.json"
 const accountsDatabase = await loadAccountsFile()
 onProcessExit(flushAccountsFile)
 
-await initialActionPrompt()
-
-// await showAccountsList().catch(console.log)
+console.log(await initialActionPrompt())
