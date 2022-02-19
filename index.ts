@@ -68,7 +68,6 @@ function promptWithEscape(
   return new Promise((resolve, reject) => {
     const promptPromise = prompts(question)
     promptPromise.then((res) => {
-      console.log("Prompt done")
       res[question.name.toString()] === undefined ? reject(0) : resolve(res)
     })
   })
@@ -113,14 +112,11 @@ function getAccountFromDatabase(id: string) {
   return matchingAccounts ? matchingAccounts[0] : null
 }
 
-async function initialActionPrompt() {
-  const result = await actionPrompt(
+function initialActionPrompt() {
+  return actionPrompt(
     { "View accounts": showAccountsList },
     { clear: true, title: "Blurple Control Panel" }
-  ).catch(console.warn)
-
-  console.log(result)
-  return result
+  )
 }
 
 function showAccountsList(): Promise<void | prompts.Answers<string>> {
@@ -142,10 +138,7 @@ function showAccountsList(): Promise<void | prompts.Answers<string>> {
 
   console.clear()
   return promptWithEscape(promptOptions).then(({ account: id }) => {
-    showAccountInfo(id).catch(() => {
-      console.log("Going back")
-      showAccountsList() // HERE
-    })
+    showAccountInfo(id).catch(showAccountsList)
   })
 }
 
@@ -198,14 +191,9 @@ async function actionPrompt(
   })
     .then((res) => {
       const returnedValue = res.action?.()
-      console.log("Action, returned value", res.action.name, returnedValue)
       if (is.promise(returnedValue)) {
         // Take the user back to this actionPrompt if they hit esc
-        returnedValue.catch(() => {
-          console.log("It has been caught!")
-          actionPrompt(actions, options) //.catch(console.warn)
-          console.log("New actionPrompt has been called")
-        })
+        returnedValue.catch(() => actionPrompt(actions, options))
       }
       return returnedValue
     })
@@ -218,6 +206,6 @@ const accountsFilePath = "accounts.json"
 const accountsDatabase = await loadAccountsFile()
 onProcessExit(flushAccountsFile)
 
-// await initialActionPrompt()
+await initialActionPrompt()
 
-await showAccountsList().catch(console.log)
+// await showAccountsList().catch(console.log)
