@@ -5,9 +5,6 @@ import { writeFileSync } from "fs"
 import prompts from "prompts"
 import is, { assert } from "@sindresorhus/is"
 import chalk from "chalk"
-import promptsHelpers from "prompts-helpers"
-
-console.clear = emptyCallback
 
 type HTTPMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH"
 
@@ -116,7 +113,7 @@ function initialActionPrompt() {
   return actionPrompt(
     { "View accounts": showAccountsList },
     { clear: true, title: "Blurple Control Panel" }
-  ).catch(() => 1)
+  )
 }
 
 function showAccountsList(): Promise<void | prompts.Answers<string>> {
@@ -188,14 +185,16 @@ async function actionPrompt(
     instructions: false,
     hint: options.hint,
     choices,
-  }).then((res) => {
-    const returnedValue = res.action?.()
-    if (is.promise(returnedValue)) {
-      // Take the user back to this actionPrompt if they hit esc
-      returnedValue.catch(() => actionPrompt(actions, options))
-    }
-    return returnedValue
   })
+    .then((res) => {
+      const returnedValue = res.action?.()
+      if (is.promise(returnedValue)) {
+        // Take the user back to this actionPrompt if they hit esc
+        returnedValue.catch(() => actionPrompt(actions, options))
+      }
+      return returnedValue
+    })
+    .catch(emptyCallback) // This shouldn't really be happening, but it is
 }
 
 console.log("Loading account database file...")
@@ -204,4 +203,4 @@ const accountsFilePath = "accounts.json"
 const accountsDatabase = await loadAccountsFile()
 onProcessExit(flushAccountsFile)
 
-console.log(await initialActionPrompt())
+await initialActionPrompt()
