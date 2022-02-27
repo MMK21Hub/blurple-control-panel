@@ -99,6 +99,17 @@ class PageManager {
     this.defaultPromptHint = "Choose an action, or hit Esc to go back"
   }
 
+  static resolvePageActions(actions: Record<string, () => void>) {
+    const resolvedActions: PageActionChoice[] = []
+    for (const actionName in actions) {
+      resolvedActions.push({
+        title: actionName,
+        value: actions[actionName],
+      })
+    }
+    return resolvedActions
+  }
+
   appendHistoryItem(pageId: string, selectedPromptItem?: string) {
     const historyItem = new HistoryItem({
       pageId,
@@ -323,7 +334,7 @@ onProcessExit(flushAccountsFile)
 const pageManager = new PageManager({
   pages: {
     main: {
-      actions: [{ title: "a", value: "main" }],
+      actions: PageManager.resolvePageActions({}),
     },
   },
   initialPage: "main",
