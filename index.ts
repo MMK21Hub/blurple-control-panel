@@ -133,9 +133,11 @@ class PageManager {
       hint: page.promptHint || this.defaultPromptHint,
       choices: page.actions,
     }).then(({ action }) => {
-      // Don't do anything if the user pressed esc
+      // Go back to the previous page if the user pressed esc
       if (is.undefined(action)) return this.navigateBack()
+      // Use a custom function (if present)
       if (is.function_(action)) return action()
+      // If a page ID is provided, navigate to it
       if (is.string(action)) return this.navigateTo(action)
     })
 
@@ -143,7 +145,11 @@ class PageManager {
   }
 
   navigateBack() {
+    // Remove the last history item
     this.history.pop()
+
+    // Navigate to the (new) last history item,
+    // or do nothing if there are no items left
     const [prevHistoryItem] = this.history.slice(-1)
     if (!prevHistoryItem) return
     this.navigateTo(prevHistoryItem.pageId, false)
