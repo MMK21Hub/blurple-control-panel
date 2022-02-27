@@ -52,6 +52,7 @@ interface PageActionChoice extends prompts.Choice {
 
 interface Page {
   beforePrompt?: () => void
+  title?: string
   promptMessage?: string
   promptHint?: string
   actions: PageActionChoice[]
@@ -64,7 +65,6 @@ interface PageManagerOptions {
 
 class HistoryItem<States = {}> {
   pageId: string
-  displayName?: string
   state
 
   toString() {
@@ -73,7 +73,7 @@ class HistoryItem<States = {}> {
 
   constructor(
     pageId: string,
-    state: {
+    state?: {
       selectedPromptItem: string
     } & States
   ) {
@@ -118,7 +118,7 @@ class PageManager {
     prompts({
       name: "action",
       type: "select",
-      message: page.promptMessage || this.defaultPromptMessage,
+      message: page.promptMessage || page.title || this.defaultPromptMessage,
       hint: page.promptHint || this.defaultPromptHint,
       choices: page.actions,
     }).then(({ action }) => {
@@ -128,7 +128,7 @@ class PageManager {
       if (is.string(action)) return this.navigateTo(action)
     })
 
-    if (updateHistory) this.oldHistory.push(pageId)
+    if (updateHistory) this.history.push(new HistoryItem(pageId))
   }
 
   navigateBack() {
