@@ -50,8 +50,8 @@ interface PageActionChoice extends prompts.Choice {
   value: PageAction
 }
 
-interface Page {
-  beforePrompt?: (pageManager: PageManager) => void
+interface Page<P extends Record<string, unknown> = {}> {
+  beforePrompt?: (pageManager: PageManager, params: P) => void
   title?: string
   promptMessage?: string
   promptHint?: string
@@ -127,7 +127,14 @@ class PageManager {
     this.initialPage = pageId
   }
 
-  navigateTo(pageId: string, updateHistory = true) {
+  navigateTo(
+    pageId: string,
+    params?: Record<string, unknown> | null,
+    options: { updateHistory?: boolean } = {}
+  ) {
+    params ??= {}
+    options.updateHistory ??= true
+
     const page = this.pages.get(pageId)
     if (!page)
       throw new Error(
@@ -135,9 +142,9 @@ class PageManager {
       )
 
     console.clear()
-    page.beforePrompt?.(this)
+    page.beforePrompt?.(this, params)
 
-    if (updateHistory) this.appendHistoryItem(pageId)
+    if (options.updateHistory) this.appendHistoryItem(pageId)
     if (!page.actions) return
 
     prompts({
@@ -164,7 +171,7 @@ class PageManager {
     // or do nothing if there are no items left
     const [prevHistoryItem] = this.history.slice(-1)
     if (!prevHistoryItem) return
-    this.navigateTo(prevHistoryItem.pageId, false)
+    this.navigateTo(prevHistoryItem.pageId, null, { updateHistory: false })
   }
 
   init() {
