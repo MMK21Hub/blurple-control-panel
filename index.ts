@@ -51,11 +51,11 @@ interface PageActionChoice extends prompts.Choice {
 }
 
 interface Page {
-  beforePrompt?: () => void
+  beforePrompt?: (pageManager: PageManager) => void
   title?: string
   promptMessage?: string
   promptHint?: string
-  actions: PageActionChoice[]
+  actions: PageActionChoice[] | null
 }
 
 interface PageManagerOptions {
@@ -99,7 +99,7 @@ class PageManager {
     this.defaultPromptHint = "Choose an action, or hit Esc to go back"
   }
 
-  static resolvePageActions(actions: Record<string, () => void>) {
+  static resolvePageActions(actions: Record<string, PageAction>) {
     const resolvedActions: PageActionChoice[] = []
     for (const actionName in actions) {
       resolvedActions.push({
@@ -135,7 +135,10 @@ class PageManager {
       )
 
     console.clear()
-    page.beforePrompt?.()
+    page.beforePrompt?.(this)
+
+    if (updateHistory) this.appendHistoryItem(pageId)
+    if (!page.actions) return
 
     prompts({
       name: "action",
@@ -151,8 +154,6 @@ class PageManager {
       // If a page ID is provided, navigate to it
       if (is.string(action)) return this.navigateTo(action)
     })
-
-    if (updateHistory) this.appendHistoryItem(pageId)
   }
 
   navigateBack() {
@@ -170,6 +171,12 @@ class PageManager {
     if (!this.initialPage)
       throw new Error("Set an initialPage before calling init()!")
     this.navigateTo(this.initialPage)
+  }
+
+  async promptOrBack(options: prompts.PromptObject) {
+    const res = await prompts(options)
+    if (!is.emptyObject(res)) return res
+    this.navigateBack()
   }
 }
 
@@ -234,14 +241,14 @@ function getAccountFromDatabase(id: string) {
   return matchingAccounts ? matchingAccounts[0] : null
 }
 
-function initialActionPrompt() {
-  return actionPrompt(
-    { "View accounts": showAccountsList },
-    { clear: true, title: "Blurple Control Panel" }
-  )
-}
+// function initialActionPrompt() {
+//   return actionPrompt(
+//     { "View accounts": showAccountsList },
+//     { clear: true, title: "Blurple Control Panel" }
+//   )
+// }
 
-function showAccountsList(): Promise<void | prompts.Answers<string>> {
+function showAccountsList(pageManager: PageManager) {
   const promptOptions: prompts.PromptObject<string> = {
     name: "account",
     message: "Accounts",
@@ -258,9 +265,8 @@ function showAccountsList(): Promise<void | prompts.Answers<string>> {
     promptOptions.choices.push({ title: accountListItem, value: account.id })
   })
 
-  console.clear()
-  return promptWithEscape(promptOptions).then(({ account: id }) => {
-    showAccountInfo(id).catch(showAccountsList)
+  prompts(promptOptions).then(({ account: id }) => {
+    id ? showAccountInfo(id) : pageManager.navigateBack()
   })
 }
 
@@ -334,7 +340,13 @@ onProcessExit(flushAccountsFile)
 const pageManager = new PageManager({
   pages: {
     main: {
-      actions: PageManager.resolvePageActions({}),
+      actions: PageManager.resolvePageActions({
+        "View accounts": "accountsList",
+      }),
+    },
+    accountsList: {
+      actions: null,
+      beforePrompt: showAccountsList,
     },
   },
   initialPage: "main",
