@@ -62,8 +62,29 @@ interface PageManagerOptions {
   initialPage?: string
 }
 
+class HistoryItem<States = {}> {
+  pageId: string
+  displayName?: string
+  state
+
+  toString() {
+    return this.pageId
+  }
+
+  constructor(
+    pageId: string,
+    state: {
+      selectedPromptItem: string
+    } & States
+  ) {
+    this.pageId = pageId
+    this.state = state
+  }
+}
+
 class PageManager {
-  history: string[] = []
+  oldHistory: string[] = []
+  history: HistoryItem[] = []
   pages: Map<string, Page>
   initialPage?: string
   defaultPromptMessage
@@ -107,12 +128,12 @@ class PageManager {
       if (is.string(action)) return this.navigateTo(action)
     })
 
-    if (updateHistory) this.history.push(pageId)
+    if (updateHistory) this.oldHistory.push(pageId)
   }
 
   navigateBack() {
-    this.history.pop()
-    const [prevHistoryItem] = this.history.slice(-1)
+    this.oldHistory.pop()
+    const [prevHistoryItem] = this.oldHistory.slice(-1)
     if (!prevHistoryItem) return
     this.navigateTo(prevHistoryItem, false)
   }
