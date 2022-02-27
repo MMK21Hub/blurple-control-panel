@@ -6,8 +6,6 @@ import prompts from "prompts"
 import is, { assert } from "@sindresorhus/is"
 import chalk from "chalk"
 
-console.clear = emptyCallback
-
 type HTTPMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH"
 
 interface LocalAccount {
@@ -87,7 +85,6 @@ class PageManager {
   }
 
   navigateTo(pageId: string, updateHistory = true) {
-    console.log("Loading page: " + pageId)
     const page = this.pages.get(pageId)
     if (!page)
       throw new Error(
@@ -105,8 +102,8 @@ class PageManager {
       choices: page.actions,
     }).then(({ action }) => {
       // Don't do anything if the user pressed esc
-      if (is.undefined(action)) this.navigateBack()
-      if (is.function_(action)) return console.log("Function:", action)
+      if (is.undefined(action)) return this.navigateBack()
+      if (is.function_(action)) return action()
       if (is.string(action)) return this.navigateTo(action)
     })
 
