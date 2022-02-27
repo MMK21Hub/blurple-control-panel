@@ -50,6 +50,54 @@ class DiscordClient {
   }
 }
 
+interface Page {
+  beforePrompt?: () => void
+  promptMessage?: string
+  actions: ActionChoice[]
+}
+
+interface PageManagerOptions {
+  pages?: Record<string, Page>
+  initialPage?: string
+}
+
+class PageManager {
+  history = []
+  pages
+  initialPage
+  defaultPromptMessage
+
+  constructor(options: PageManagerOptions = {}) {
+    this.pages = new Map<string, Page>(Object.entries(options.pages || {}))
+    this.initialPage = options.initialPage
+    this.defaultPromptMessage = "Choose an action, or hit Esc to go back"
+  }
+
+  navigate(pageId: string) {
+    console.log("Loading next page...")
+    const page = this.pages.get(pageId)
+    if (!page)
+      throw new Error(
+        `Could not find page: ${pageId} (available pages: ${this.pages.size})`
+      )
+
+    console.clear()
+    page.beforePrompt?.()
+    prompts({
+      name: "action",
+      type: "select",
+      message: page.promptMessage || this.defaultPromptMessage,
+      choices: page.actions,
+    })
+  }
+
+  init() {
+    if (!this.initialPage)
+      throw new Error("Set an initialPage before calling init()!")
+    this.navigate(this.initialPage)
+  }
+}
+
 function emptyCallback(...args: unknown[]) {
   return
 }
@@ -188,6 +236,9 @@ async function actionPrompt(
     instructions: false,
     hint: options.hint,
     choices,
+  }).catch((err) => {
+    console.warn("Err")
+    throw err
   })
 
   const returnedValue = res.action?.()
@@ -203,4 +254,4 @@ const accountsFilePath = "accounts.json"
 const accountsDatabase = await loadAccountsFile()
 onProcessExit(flushAccountsFile)
 
-await initialActionPrompt()
+await initialActionPrompt().catch(console.warn)
