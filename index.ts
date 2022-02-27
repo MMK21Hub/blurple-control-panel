@@ -65,7 +65,7 @@ interface PageManagerOptions {
 }
 
 class PageManager {
-  history = []
+  history: string[] = []
   pages: Map<string, Page>
   initialPage?: string
   defaultPromptMessage
@@ -86,7 +86,7 @@ class PageManager {
     this.initialPage = pageId
   }
 
-  navigateTo(pageId: string) {
+  navigateTo(pageId: string, updateHistory = true) {
     console.log("Loading page: " + pageId)
     const page = this.pages.get(pageId)
     if (!page)
@@ -103,14 +103,21 @@ class PageManager {
       message: page.promptMessage || this.defaultPromptMessage,
       hint: page.promptHint || this.defaultPromptHint,
       choices: page.actions,
-    }).then((answers) => {
+    }).then(({ action }) => {
       // Don't do anything if the user pressed esc
-      if (!answers) return
-
-      const action: PageAction = answers.action
+      if (is.undefined(action)) this.navigateBack()
       if (is.function_(action)) return console.log("Function:", action)
       if (is.string(action)) return this.navigateTo(action)
     })
+
+    if (updateHistory) this.history.push(pageId)
+  }
+
+  navigateBack() {
+    this.history.pop()
+    const [prevHistoryItem] = this.history.slice(-1)
+    if (!prevHistoryItem) return
+    this.navigateTo(prevHistoryItem, false)
   }
 
   init() {
