@@ -86,7 +86,6 @@ class HistoryItem<States = {}> {
 }
 
 class PageManager {
-  oldHistory: string[] = []
   history: HistoryItem[] = []
   pages: Map<string, Page>
   initialPage?: string
@@ -144,10 +143,10 @@ class PageManager {
   }
 
   navigateBack() {
-    this.oldHistory.pop()
-    const [prevHistoryItem] = this.oldHistory.slice(-1)
+    this.history.pop()
+    const [prevHistoryItem] = this.history.slice(-1)
     if (!prevHistoryItem) return
-    this.navigateTo(prevHistoryItem, false)
+    this.navigateTo(prevHistoryItem.pageId, false)
   }
 
   init() {
