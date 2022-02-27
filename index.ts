@@ -65,20 +65,23 @@ interface PageManagerOptions {
 
 class HistoryItem<States = {}> {
   pageId: string
+  displayName?: string
   state
 
   toString() {
-    return this.pageId
+    return this.displayName || this.pageId
   }
 
-  constructor(
-    pageId: string,
+  constructor(options: {
+    pageId: string
     state?: {
-      selectedPromptItem: string
+      selectedPromptItem?: string
     } & States
-  ) {
-    this.pageId = pageId
-    this.state = state
+    displayName?: string
+  }) {
+    this.pageId = options.pageId
+    this.state = options.state
+    this.displayName = options.displayName
   }
 }
 
@@ -95,6 +98,15 @@ class PageManager {
     if (options.initialPage) this.setInitialPage(options.initialPage)
     this.defaultPromptMessage = "Actions"
     this.defaultPromptHint = "Choose an action, or hit Esc to go back"
+  }
+
+  appendHistoryItem(pageId: string, selectedPromptItem?: string) {
+    const historyItem = new HistoryItem({
+      pageId,
+      state: { selectedPromptItem },
+    })
+    historyItem.displayName = this.pages.get(pageId)?.title
+    this.history.push(historyItem)
   }
 
   setInitialPage(pageId: string) {
@@ -128,7 +140,7 @@ class PageManager {
       if (is.string(action)) return this.navigateTo(action)
     })
 
-    if (updateHistory) this.history.push(new HistoryItem(pageId))
+    if (updateHistory) this.appendHistoryItem(pageId)
   }
 
   navigateBack() {
