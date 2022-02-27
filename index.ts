@@ -17,10 +17,6 @@ interface LocalAccount {
   aliases?: string[]
 }
 
-interface ActionChoice extends prompts.Choice {
-  value: () => void
-}
-
 class DiscordClient {
   baseEndpoint = "https://discord.com/api/v9/"
   token
@@ -50,10 +46,15 @@ class DiscordClient {
   }
 }
 
+interface PageAction extends prompts.Choice {
+  value: string | (() => void)
+}
+
 interface Page {
   beforePrompt?: () => void
   promptMessage?: string
-  actions: ActionChoice[]
+  promptHint?: string
+  actions: PageAction[]
 }
 
 interface PageManagerOptions {
@@ -63,17 +64,27 @@ interface PageManagerOptions {
 
 class PageManager {
   history = []
-  pages
-  initialPage
+  pages: Map<string, Page>
+  initialPage?: string
   defaultPromptMessage
+  defaultPromptHint
 
   constructor(options: PageManagerOptions = {}) {
     this.pages = new Map<string, Page>(Object.entries(options.pages || {}))
-    this.initialPage = options.initialPage
-    this.defaultPromptMessage = "Choose an action, or hit Esc to go back"
+    if (options.initialPage) this.setInitialPage(options.initialPage)
+    this.defaultPromptMessage = "Actions"
+    this.defaultPromptHint = "Choose an action, or hit Esc to go back"
   }
 
-  navigate(pageId: string) {
+  setInitialPage(pageId: string) {
+    if (!this.pages.has(pageId))
+      throw new Error(
+        `Cannot have an initial page that doesn't exist: ${pageId} (available pages: ${this.pages.size})`
+      )
+    this.initialPage = pageId
+  }
+
+  navigateTo(pageId: string) {
     console.log("Loading next page...")
     const page = this.pages.get(pageId)
     if (!page)
@@ -87,6 +98,7 @@ class PageManager {
       name: "action",
       type: "select",
       message: page.promptMessage || this.defaultPromptMessage,
+      hint: page.promptHint || this.defaultPromptHint,
       choices: page.actions,
     })
   }
@@ -94,7 +106,7 @@ class PageManager {
   init() {
     if (!this.initialPage)
       throw new Error("Set an initialPage before calling init()!")
-    this.navigate(this.initialPage)
+    this.navigateTo(this.initialPage)
   }
 }
 
@@ -254,4 +266,15 @@ const accountsFilePath = "accounts.json"
 const accountsDatabase = await loadAccountsFile()
 onProcessExit(flushAccountsFile)
 
-await initialActionPrompt().catch(console.warn)
+// await initialActionPrompt().catch(console.warn)
+
+const pageManager = new PageManager({
+  pages: {
+    main: {
+      actions: [{ title: "a", value: "main" }],
+    },
+  },
+  initialPage: "main",
+})
+
+pageManager.init()
