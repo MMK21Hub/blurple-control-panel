@@ -46,15 +46,17 @@ class DiscordClient {
   }
 }
 
-interface PageAction extends prompts.Choice {
-  value: string | (() => void)
+type PageAction = string | (() => void)
+
+interface PageActionChoice extends prompts.Choice {
+  value: PageAction
 }
 
 interface Page {
   beforePrompt?: () => void
   promptMessage?: string
   promptHint?: string
-  actions: PageAction[]
+  actions: PageActionChoice[]
 }
 
 interface PageManagerOptions {
@@ -85,7 +87,7 @@ class PageManager {
   }
 
   navigateTo(pageId: string) {
-    console.log("Loading next page...")
+    console.log("Loading page: " + pageId)
     const page = this.pages.get(pageId)
     if (!page)
       throw new Error(
@@ -94,12 +96,20 @@ class PageManager {
 
     console.clear()
     page.beforePrompt?.()
+
     prompts({
       name: "action",
       type: "select",
       message: page.promptMessage || this.defaultPromptMessage,
       hint: page.promptHint || this.defaultPromptHint,
       choices: page.actions,
+    }).then((answers) => {
+      // Don't do anything if the user pressed esc
+      if (!answers) return
+
+      const action: PageAction = answers.action
+      if (is.function_(action)) return console.log("Function:", action)
+      if (is.string(action)) return this.navigateTo(action)
     })
   }
 
