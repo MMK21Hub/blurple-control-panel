@@ -66,6 +66,7 @@ interface PageManagerOptions {
 class HistoryItem<States = {}> {
   pageId: string
   displayName?: string
+  pageParameters
   state
 
   toString() {
@@ -78,10 +79,12 @@ class HistoryItem<States = {}> {
       selectedPromptItem?: string
     } & States
     displayName?: string
+    pageParameters?: Record<string, unknown>
   }) {
     this.pageId = options.pageId
     this.state = options.state
     this.displayName = options.displayName
+    this.pageParameters = options.pageParameters
   }
 }
 
@@ -110,12 +113,18 @@ class PageManager {
     return resolvedActions
   }
 
-  appendHistoryItem(pageId: string, selectedPromptItem?: string) {
+  appendHistoryItem(
+    pageId: string,
+    selectedPromptItem?: string,
+    pageParameters?: Record<string, unknown>
+  ) {
     const historyItem = new HistoryItem({
       pageId,
+      pageParameters,
       state: { selectedPromptItem },
     })
     historyItem.displayName = this.pages.get(pageId)?.title
+
     this.history.push(historyItem)
   }
 
@@ -144,7 +153,7 @@ class PageManager {
     console.clear()
     page.beforePrompt?.(this, params)
 
-    if (options.updateHistory) this.appendHistoryItem(pageId)
+    if (options.updateHistory) this.appendHistoryItem(pageId, undefined, params)
     if (!page.actions) return
 
     prompts({
