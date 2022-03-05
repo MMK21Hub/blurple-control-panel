@@ -44,7 +44,7 @@ class DiscordClient {
   }
 }
 
-type PageAction = string | (() => void)
+type PageAction = string | (() => void) | null
 
 interface PageActionChoice extends prompts.Choice {
   value: PageAction
@@ -64,7 +64,7 @@ interface Page<
   title?: string
   promptMessage?: string
   promptHint?: string
-  actions: PageActionChoice[] | null
+  actions?: PageActionChoice[]
 }
 
 interface PageManagerOptions {
@@ -123,19 +123,19 @@ class PageManager {
     return resolvedActions
   }
 
-  appendHistoryItem(
-    pageId: string,
-    selectedPromptIndex?: number,
-    pageParameters?: Record<string, unknown>
-  ) {
+  appendHistoryItem(pageId: string, pageParameters?: Record<string, unknown>) {
     const historyItem = new HistoryItem({
       pageId,
       pageParameters,
-      selectedPromptIndex,
+
       displayName: this.pages.get(pageId)?.title,
     })
 
     this.history.push(historyItem)
+  }
+
+  getLastHistoryItem() {
+    return this.history.slice(-1)[0]
   }
 
   setInitialPage(pageId: string) {
@@ -149,7 +149,7 @@ class PageManager {
   navigateTo(
     pageId: string,
     options: {
-      updateHistory?: boolean
+      updateHistory?: boolean | number
       params?: Record<string, unknown>
       state?: Record<string, unknown>
       selectedAction?: number
@@ -157,7 +157,8 @@ class PageManager {
   ) {
     options.params ??= {}
     options.state ??= {}
-    options.updateHistory ??= true
+    // Required for TypeScript to admit that this could still be `false`
+    options.updateHistory ?? (options.updateHistory = true)
 
     const page = this.pages.get(pageId)
     if (!page)
@@ -171,8 +172,10 @@ class PageManager {
       state: options.state,
     })
 
-    if (options.updateHistory)
-      this.appendHistoryItem(pageId, options.selectedAction, options.params)
+    if (is.number(options.updateHistory))
+      this.getLastHistoryItem().selectedPromptIndex = options.updateHistory
+    if (options.updateHistory !== false)
+      this.appendHistoryItem(pageId, options.params)
     if (!page.actions) return
 
     prompts({
@@ -183,14 +186,15 @@ class PageManager {
       choices: page.actions,
       initial: options.selectedAction,
     }).then(({ action }: { action: string }) => {
-      page.actions?.findIndex((a) => a.value === action)
+      const selectedAction = page.actions?.findIndex((a) => a.value === action)
 
       // Go back to the previous page if the user pressed esc
       if (is.undefined(action)) return this.navigateBack()
       // Use a custom function (if present)
       if (is.function_(action)) return action()
       // If a page ID is provided, navigate to it
-      if (is.string(action)) return this.navigateTo(action)
+      if (is.string(action))
+        return this.navigateTo(action, { updateHistory: selectedAction })
     })
   }
 
@@ -200,7 +204,7 @@ class PageManager {
 
     // Navigate to the (new) last history item,
     // or do nothing if there are no items left
-    const [prevHistoryItem] = this.history.slice(-1)
+    const prevHistoryItem = this.getLastHistoryItem()
     if (!prevHistoryItem) return
     this.navigateTo(prevHistoryItem.pageId, {
       updateHistory: false,
@@ -389,12 +393,24 @@ const pageManager = new PageManager({
       }),
     },
     accountsList: {
-      actions: null,
       beforePrompt: showAccountsList,
     },
     info: {
-      actions: null,
-      beforePrompt: () => console.log("Nice"),
+      actions: PageManager.resolvePageActions({
+        "Info A": "infoA",
+        "Info B": "infoB",
+      }),
+      // beforePrompt: () => console.log("Nice"),
+    },
+    infoA: {
+      actions: PageManager.resolvePageActions({
+        "Do Nothing": null,
+      }),
+    },
+    infoB: {
+      actions: PageManager.resolvePageActions({
+        "Also do Nothing": null,
+      }),
     },
   },
   initialPage: "main",
