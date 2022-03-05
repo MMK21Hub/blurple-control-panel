@@ -62,8 +62,10 @@ interface Page<
     }
   ) => void
   title?: string
-  promptMessage?: string
-  promptHint?: string
+  prompt?: {
+    message?: string
+    hint?: string
+  }
   actions?: PageActionChoice[] | (() => PageActionChoice[])
 }
 
@@ -185,8 +187,8 @@ class PageManager {
     prompts({
       name: "action",
       type: "select",
-      message: page.promptMessage || page.title || this.defaultPromptMessage,
-      hint: page.promptHint || this.defaultPromptHint,
+      message: page.prompt?.message || page.title || this.defaultPromptMessage,
+      hint: page.prompt?.hint || this.defaultPromptHint,
       choices: pageActions,
       initial: options.selectedAction,
     }).then(({ action }: { action: string }) => {
@@ -292,23 +294,7 @@ function getAccountFromDatabase(id: string) {
   return matchingAccounts ? matchingAccounts[0] : null
 }
 
-// function initialActionPrompt() {
-//   return actionPrompt(
-//     { "View accounts": showAccountsList },
-//     { clear: true, title: "Blurple Control Panel" }
-//   )
-// }
-
 function generateAccountsList() {
-  // const promptOptions: prompts.PromptObject<string> = {
-  //   name: "account",
-  //   message: "Accounts",
-  //   type: "select",
-  //   hint: "Select an account to view info, or hit esc to go back",
-  //   limit: 20,
-  //   choices: [],
-  // }
-
   const actions: PageActionChoice[] = []
 
   accountsDatabase.forEach((account) => {
@@ -386,11 +372,10 @@ const accountsFilePath = "accounts.json"
 const accountsDatabase = await loadAccountsFile()
 onProcessExit(flushAccountsFile)
 
-// await initialActionPrompt().catch(console.warn)
-
-const pageManager = new PageManager({
+new PageManager({
   pages: {
     main: {
+      title: "Blurple Control Panel",
       actions: PageManager.resolvePageActions({
         "View accounts": "accountsList",
       }),
@@ -400,6 +385,4 @@ const pageManager = new PageManager({
     },
   },
   initialPage: "main",
-})
-
-pageManager.init()
+}).init()
