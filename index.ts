@@ -64,7 +64,7 @@ interface Page<
   title?: string
   promptMessage?: string
   promptHint?: string
-  actions?: PageActionChoice[]
+  actions?: PageActionChoice[] | (() => PageActionChoice[])
 }
 
 interface PageManagerOptions {
@@ -166,6 +166,10 @@ class PageManager {
         `Could not find page: ${pageId} (available pages: ${this.pages.size})`
       )
 
+    const pageActions = is.function_(page.actions)
+      ? page.actions()
+      : page.actions
+
     console.clear()
     page.beforePrompt?.(this, {
       parameters: options.params,
@@ -176,17 +180,17 @@ class PageManager {
       this.getLastHistoryItem().selectedPromptIndex = options.updateHistory
     if (options.updateHistory !== false)
       this.appendHistoryItem(pageId, options.params)
-    if (!page.actions) return
+    if (!pageActions) return
 
     prompts({
       name: "action",
       type: "select",
       message: page.promptMessage || page.title || this.defaultPromptMessage,
       hint: page.promptHint || this.defaultPromptHint,
-      choices: page.actions,
+      choices: pageActions,
       initial: options.selectedAction,
     }).then(({ action }: { action: string }) => {
-      const selectedAction = page.actions?.findIndex((a) => a.value === action)
+      const selectedAction = pageActions?.findIndex((a) => a.value === action)
 
       // Go back to the previous page if the user pressed esc
       if (is.undefined(action)) return this.navigateBack()
@@ -389,28 +393,10 @@ const pageManager = new PageManager({
     main: {
       actions: PageManager.resolvePageActions({
         "View accounts": "accountsList",
-        Information: "info",
       }),
     },
     accountsList: {
       beforePrompt: showAccountsList,
-    },
-    info: {
-      actions: PageManager.resolvePageActions({
-        "Info A": "infoA",
-        "Info B": "infoB",
-      }),
-      // beforePrompt: () => console.log("Nice"),
-    },
-    infoA: {
-      actions: PageManager.resolvePageActions({
-        "Do Nothing": null,
-      }),
-    },
-    infoB: {
-      actions: PageManager.resolvePageActions({
-        "Also do Nothing": null,
-      }),
     },
   },
   initialPage: "main",
