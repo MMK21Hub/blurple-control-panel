@@ -166,6 +166,7 @@ class PageManager {
       params?: Record<string, unknown>
       state?: Record<string, unknown>
       selectedAction?: number
+      errorMessage?: string
     } = {}
   ) {
     options.params ??= {}
@@ -187,6 +188,8 @@ class PageManager {
 
     this.breadcrumbs.push(page.title || pageId)
     this.showBreadcrumbs()
+
+    if (options.errorMessage) console.log(chalk.red(options.errorMessage))
 
     page.beforePrompt?.(this, {
       parameters: options.params,
@@ -214,12 +217,18 @@ class PageManager {
       // Use a custom function (if present)
       if (is.function_(action)) return action()
       // If a page ID is provided, navigate to it
-      if (is.string(action))
-        return this.navigateTo(action, { updateHistory: selectedAction })
+      if (is.string(action)) {
+        try {
+          this.navigateTo(action, { updateHistory: selectedAction })
+        } catch (error) {
+          this.navigateBack(`Failed to navigate to page "${action}"`)
+        }
+        return
+      }
     })
   }
 
-  navigateBack() {
+  navigateBack(errorMessage?: string) {
     // Remove the last history item
     this.history.pop()
     this.breadcrumbs.pop()
@@ -229,8 +238,10 @@ class PageManager {
     // or do nothing if there are no items left
     const prevHistoryItem = this.getLastHistoryItem()
     if (!prevHistoryItem) return
+    console.log("s")
     this.navigateTo(prevHistoryItem.pageId, {
       updateHistory: false,
+      errorMessage,
       params: prevHistoryItem.pageParameters,
       selectedAction: prevHistoryItem.selectedPromptIndex,
       state: prevHistoryItem.state,
