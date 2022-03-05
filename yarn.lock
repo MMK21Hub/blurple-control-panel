@@ -39,10 +39,10 @@ data-uri-to-buffer@^4.0.0:
   resolved "https://registry.yarnpkg.com/data-uri-to-buffer/-/data-uri-to-buffer-4.0.0.tgz#b5db46aea50f6176428ac05b73be39a57701a64b"
   integrity sha512-Vr3mLBA8qWmcuschSLAOogKgQ/Jwxulv3RNE4FXnYWRGujzrRWQI4m12fQqRkwX06C0KanhLr4hK+GydchZsaA==
 
-discord-api-types@^0.27.1:
-  version "0.27.1"
-  resolved "https://registry.yarnpkg.com/discord-api-types/-/discord-api-types-0.27.1.tgz#bd3fc48e0f9a1c8e975f17b006c931b0c57bf6f0"
-  integrity sha512-NhOrRs3TDx/p/e7+VCzcvtVz/Wkqa/olS82HJb2aM/oI0CLcnB+lJMXWa8wjn57XviFBcMMR0poqUMXx0IqTkQ==
+discord-api-types@^0.27.3:
+  version "0.27.3"
+  resolved "https://registry.yarnpkg.com/discord-api-types/-/discord-api-types-0.27.3.tgz#518e99a548b62a7912a09e94ad90d0612e2053c6"
+  integrity sha512-HOG64DTpZ7CB5EU9eKbjHD50H5qG1pxKG8pmFfHUMKjKvEWeLBHfw0c9xF1cruiYLnBb3+n7m3jBWxZ3H1hcgQ==
 
 fetch-blob@^3.1.2, fetch-blob@^3.1.4:
   version "3.1.4"
