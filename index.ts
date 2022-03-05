@@ -80,6 +80,7 @@ class HistoryItem<States = {}> {
   pageParameters
   selectedPromptIndex
   state
+  hidden: boolean = false
 
   toString() {
     return this.displayName || this.pageId
@@ -102,6 +103,7 @@ class HistoryItem<States = {}> {
 
 class PageManager {
   history: HistoryItem[] = []
+  breadcrumbs: string[] = []
   pages: Map<string, Page>
   initialPage?: string
   defaultPromptMessage
@@ -112,6 +114,15 @@ class PageManager {
     if (options.initialPage) this.setInitialPage(options.initialPage)
     this.defaultPromptMessage = "Actions"
     this.defaultPromptHint = "Choose an action, or hit Esc to go back"
+  }
+
+  private showBreadcrumbs(currentPage?: string) {
+    const arrow = chalk.cyan(" > ")
+    let breadcrumbText = this.breadcrumbs
+      .map((item) => chalk.dim(item))
+      .join(arrow)
+    if (currentPage) breadcrumbText += arrow + currentPage
+    console.log(breadcrumbText)
   }
 
   static resolvePageActions(actions: Record<string, PageAction>) {
@@ -173,6 +184,10 @@ class PageManager {
       : page.actions
 
     console.clear()
+
+    this.breadcrumbs.push(page.title || pageId)
+    this.showBreadcrumbs()
+
     page.beforePrompt?.(this, {
       parameters: options.params,
       state: options.state,
@@ -207,6 +222,8 @@ class PageManager {
   navigateBack() {
     // Remove the last history item
     this.history.pop()
+    this.breadcrumbs.pop()
+    this.breadcrumbs.pop()
 
     // Navigate to the (new) last history item,
     // or do nothing if there are no items left
