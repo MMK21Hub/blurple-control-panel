@@ -44,7 +44,7 @@ class DiscordClient {
   }
 }
 
-type PageAction = string | (() => void) | null
+type PageAction = string | (() => void) | null | Record<string, unknown>
 
 interface PageActionChoice extends prompts.Choice {
   value: PageAction
@@ -189,7 +189,8 @@ class PageManager {
 
     console.clear()
 
-    this.breadcrumbs.push(page.title || pageId)
+    if (options.updateHistory !== false)
+      this.breadcrumbs.push(page.title || pageId)
     this.showBreadcrumbs()
 
     if (options.errorMessage) console.log(chalk.red(options.errorMessage))
@@ -212,7 +213,7 @@ class PageManager {
       hint: page.prompt?.hint || this.defaultPromptHint,
       choices: pageActions,
       initial: options.selectedAction,
-    }).then(({ action }: { action: string }) => {
+    }).then(({ action }: { action: PageAction }) => {
       const selectedAction = pageActions?.findIndex((a) => a.value === action)
 
       // Go back to the previous page if the user pressed esc
@@ -224,7 +225,10 @@ class PageManager {
         try {
           this.navigateTo(action, { updateHistory: selectedAction })
         } catch (error) {
-          this.navigateBack(`Failed to navigate to page "${action}"`)
+          options.errorMessage = `Failed to navigate to page "${action}"`
+          options.updateHistory = false
+          options.selectedAction = selectedAction
+          this.navigateTo(pageId, options)
         }
         return
       }
@@ -234,7 +238,6 @@ class PageManager {
   navigateBack(errorMessage?: string) {
     // Remove the last history item
     this.history.pop()
-    this.breadcrumbs.pop()
     this.breadcrumbs.pop()
 
     // Navigate to the (new) last history item,
