@@ -50,8 +50,17 @@ interface PageActionChoice extends prompts.Choice {
   value: PageAction
 }
 
-interface Page<P extends Record<string, unknown> = {}> {
-  beforePrompt?: (pageManager: PageManager, params: P) => void
+interface Page<
+  P extends Record<string, unknown> = {},
+  S extends Record<string, unknown> = {}
+> {
+  beforePrompt?: (
+    pageManager: PageManager,
+    info: {
+      parameters: P
+      state: S
+    }
+  ) => void
   title?: string
   promptMessage?: string
   promptHint?: string
@@ -67,6 +76,7 @@ class HistoryItem<States = {}> {
   pageId: string
   displayName?: string
   pageParameters
+  selectedPromptIndex
   state
 
   toString() {
@@ -75,16 +85,16 @@ class HistoryItem<States = {}> {
 
   constructor(options: {
     pageId: string
-    state?: {
-      selectedPromptItem?: string
-    } & States
+    state?: States
     displayName?: string
     pageParameters?: Record<string, unknown>
+    selectedPromptIndex?: number
   }) {
     this.pageId = options.pageId
     this.state = options.state
     this.displayName = options.displayName
     this.pageParameters = options.pageParameters
+    this.selectedPromptIndex = options.selectedPromptIndex
   }
 }
 
@@ -115,15 +125,15 @@ class PageManager {
 
   appendHistoryItem(
     pageId: string,
-    selectedPromptItem?: string,
+    selectedPromptIndex?: number,
     pageParameters?: Record<string, unknown>
   ) {
     const historyItem = new HistoryItem({
       pageId,
       pageParameters,
-      state: { selectedPromptItem },
+      selectedPromptIndex,
+      displayName: this.pages.get(pageId)?.title,
     })
-    historyItem.displayName = this.pages.get(pageId)?.title
 
     this.history.push(historyItem)
   }
@@ -138,10 +148,15 @@ class PageManager {
 
   navigateTo(
     pageId: string,
-    params?: Record<string, unknown> | null,
-    options: { updateHistory?: boolean } = {}
+    options: {
+      updateHistory?: boolean
+      params?: Record<string, unknown>
+      state?: Record<string, unknown>
+      selectedAction?: number
+    } = {}
   ) {
-    params ??= {}
+    options.params ??= {}
+    options.state ??= {}
     options.updateHistory ??= true
 
     const page = this.pages.get(pageId)
@@ -151,9 +166,13 @@ class PageManager {
       )
 
     console.clear()
-    page.beforePrompt?.(this, params)
+    page.beforePrompt?.(this, {
+      parameters: options.params,
+      state: options.state,
+    })
 
-    if (options.updateHistory) this.appendHistoryItem(pageId, undefined, params)
+    if (options.updateHistory)
+      this.appendHistoryItem(pageId, options.selectedAction, options.params)
     if (!page.actions) return
 
     prompts({
@@ -162,7 +181,10 @@ class PageManager {
       message: page.promptMessage || page.title || this.defaultPromptMessage,
       hint: page.promptHint || this.defaultPromptHint,
       choices: page.actions,
-    }).then(({ action }) => {
+      initial: options.selectedAction,
+    }).then(({ action }: { action: string }) => {
+      page.actions?.findIndex((a) => a.value === action)
+
       // Go back to the previous page if the user pressed esc
       if (is.undefined(action)) return this.navigateBack()
       // Use a custom function (if present)
@@ -180,7 +202,12 @@ class PageManager {
     // or do nothing if there are no items left
     const [prevHistoryItem] = this.history.slice(-1)
     if (!prevHistoryItem) return
-    this.navigateTo(prevHistoryItem.pageId, null, { updateHistory: false })
+    this.navigateTo(prevHistoryItem.pageId, {
+      updateHistory: false,
+      params: prevHistoryItem.pageParameters,
+      selectedAction: prevHistoryItem.selectedPromptIndex,
+      state: prevHistoryItem.state,
+    })
   }
 
   init() {
@@ -358,11 +385,16 @@ const pageManager = new PageManager({
     main: {
       actions: PageManager.resolvePageActions({
         "View accounts": "accountsList",
+        Information: "info",
       }),
     },
     accountsList: {
       actions: null,
       beforePrompt: showAccountsList,
+    },
+    info: {
+      actions: null,
+      beforePrompt: () => console.log("Nice"),
     },
   },
   initialPage: "main",
