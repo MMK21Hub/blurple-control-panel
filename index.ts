@@ -116,12 +116,15 @@ class PageManager {
     this.defaultPromptHint = "Choose an action, or hit Esc to go back"
   }
 
-  private showBreadcrumbs(currentPage?: string) {
+  private showBreadcrumbs() {
+    if (this.breadcrumbs.length <= 1) return
+
     const arrow = chalk.cyan(" > ")
-    let breadcrumbText = this.breadcrumbs
-      .map((item) => chalk.dim(item))
+    const lastIndex = this.breadcrumbs.length - 1
+    const breadcrumbText = this.breadcrumbs
+      .map((item, i) => (i === lastIndex ? item : chalk.dim(item)))
       .join(arrow)
-    if (currentPage) breadcrumbText += arrow + currentPage
+
     console.log(breadcrumbText)
   }
 
@@ -410,6 +413,10 @@ new PageManager({
     },
     accountsList: {
       actions: generateAccountsList,
+      prompt: {
+        message: "Accounts",
+        hint: "Select an account to view info, or hit esc to go back",
+      },
     },
   },
   initialPage: "main",
