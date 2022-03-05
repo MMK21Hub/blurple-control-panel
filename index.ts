@@ -279,7 +279,7 @@ async function loadAccountsFile() {
 function flushAccountsFile() {
   console.clear()
   console.log(`Saving ${accountsFilePath}...`)
-  writeFileSync(accountsFilePath, JSON.stringify(accountsDatabase))
+  writeFileSync(accountsFilePath, JSON.stringify(accountsDatabase, null, "  "))
   console.log("Exiting!")
 }
 
