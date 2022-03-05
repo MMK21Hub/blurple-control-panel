@@ -299,26 +299,26 @@ function getAccountFromDatabase(id: string) {
 //   )
 // }
 
-function showAccountsList(pageManager: PageManager) {
-  const promptOptions: prompts.PromptObject<string> = {
-    name: "account",
-    message: "Accounts",
-    type: "select",
-    hint: "Select an account to view info, or hit esc to go back",
-    limit: 20,
-    choices: [],
-  }
+function generateAccountsList() {
+  // const promptOptions: prompts.PromptObject<string> = {
+  //   name: "account",
+  //   message: "Accounts",
+  //   type: "select",
+  //   hint: "Select an account to view info, or hit esc to go back",
+  //   limit: 20,
+  //   choices: [],
+  // }
+
+  const actions: PageActionChoice[] = []
+
   accountsDatabase.forEach((account) => {
-    assert.array(promptOptions.choices)
     let accountListItem =
       `${account.name}` +
       (account.aliases ? ` (${account.aliases.join(", ")})` : "")
-    promptOptions.choices.push({ title: accountListItem, value: account.id })
+    actions.push({ title: accountListItem, value: account.id })
   })
 
-  prompts(promptOptions).then(({ account: id }) => {
-    id ? showAccountInfo(id) : pageManager.navigateBack()
-  })
+  return actions
 }
 
 function showAccountInfo(id: string) {
@@ -396,7 +396,7 @@ const pageManager = new PageManager({
       }),
     },
     accountsList: {
-      beforePrompt: showAccountsList,
+      actions: generateAccountsList,
     },
   },
   initialPage: "main",
