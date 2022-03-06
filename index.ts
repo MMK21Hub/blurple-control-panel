@@ -58,13 +58,7 @@ interface Page<
   P extends Record<string, unknown> = Record<string, unknown>,
   S extends Record<string, unknown> = Record<string, unknown>
 > {
-  beforePrompt?: (
-    pageManager: PageManager,
-    info: {
-      parameters: P
-      state: S
-    }
-  ) => void
+  beforePrompt?: (info: { parameters: P; state: S; self: PageManager }) => void
   title?: string
   prompt?: {
     message?: string
@@ -239,9 +233,10 @@ class PageManager {
     if (options.errorMessage) console.log(chalk.red(options.errorMessage))
 
     try {
-      page.beforePrompt?.(this, {
+      page.beforePrompt?.({
         parameters: options.params,
         state: options.state,
+        self: this,
       })
     } catch (error) {
       console.log(chalk.red(`Failed to run beforePrompt(): ${error}`))
@@ -390,10 +385,7 @@ function accountOrThrow(o: unknown): asserts o is LocalAccount {
   }
 }
 
-const showAccountInfo: Page["beforePrompt"] = (
-  pm: PageManager,
-  { parameters: { account } }
-) => {
+const showAccountInfo: Page["beforePrompt"] = ({ parameters: { account } }) => {
   accountOrThrow(account)
 
   console.clear()
@@ -444,7 +436,7 @@ new PageManager({
       }),
     },
     testPage: {
-      beforePrompt: (pm, { parameters }) => console.log(parameters),
+      beforePrompt: ({ parameters }) => console.log(parameters),
       actions: PageManager.resolvePageActions({
         Nothing: null,
       }),
