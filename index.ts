@@ -331,17 +331,6 @@ function sanitizeToken(token: string) {
     .join(".")
 }
 
-function promptWithEscape(
-  question: prompts.PromptObject<string>
-): Promise<prompts.Answers<string>> {
-  return new Promise((resolve, reject) => {
-    const promptPromise = prompts(question)
-    promptPromise.then((res) => {
-      res[question.name.toString()] === undefined ? reject(0) : resolve(res)
-    })
-  })
-}
-
 async function loadAccountsFile() {
   const fileContents = await readFile(accountsFilePath, "utf-8").catch(
     async (err) => {
@@ -368,17 +357,6 @@ function flushAccountsFile() {
   console.log(`Saving ${accountsFilePath}...`)
   writeFileSync(accountsFilePath, JSON.stringify(accountsDatabase, null, "  "))
   console.log("Exiting!")
-}
-
-function getAccountFromDatabase(id: string) {
-  const matchingAccounts = accountsDatabase.filter(
-    (account) => account.id === id
-  )
-  if (matchingAccounts.length > 1)
-    throw new Error(
-      "Found multiple accounts with the same ID in the database: " + id
-    )
-  return matchingAccounts ? matchingAccounts[0] : null
 }
 
 function generateAccountsList() {
@@ -429,47 +407,6 @@ const showAccountInfo: Page["beforePrompt"] = (
   console.log()
 }
 
-async function actionPrompt(
-  actions: Record<string, () => void>,
-  options: {
-    title?: string
-    hint?: string
-    clear?: boolean
-  } = {}
-) {
-  options.title ??= "Actions"
-  options.clear ??= false
-  options.hint ??= "Choose an action, or hit Esc to go back"
-
-  const choices: prompts.Choice[] = []
-  for (const actionName in actions) {
-    choices.push({
-      title: actionName,
-      value: actions[actionName],
-    })
-  }
-
-  if (options.clear) console.clear()
-
-  const res = await prompts({
-    name: "action",
-    message: options.title,
-    type: "select",
-    instructions: false,
-    hint: options.hint,
-    choices,
-  }).catch((err) => {
-    console.warn("Err")
-    throw err
-  })
-
-  const returnedValue = res.action?.()
-  if (is.promise(returnedValue)) {
-    // Take the user back to this actionPrompt if they hit esc
-    returnedValue.catch(() => actionPrompt(actions, options))
-  }
-}
-
 console.log("Loading account database file...")
 
 const accountsFilePath = "accounts.json"
@@ -493,7 +430,7 @@ new PageManager({
       },
     },
     accountInfo: {
-      actions: PageManager.resolvePageActions({ Nope: () => {} }),
+      actions: PageManager.resolvePageActions({ Nope: null }),
       beforePrompt: showAccountInfo,
     },
     tests: {
