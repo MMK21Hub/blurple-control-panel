@@ -123,6 +123,7 @@ class PageManager {
   initialPage?: string
   defaultPromptMessage
   defaultPromptHint
+  shouldExit = false
 
   constructor(options: PageManagerOptions = {}) {
     this.pages = new Map<string, Page>(Object.entries(options.pages || {}))
@@ -255,6 +256,11 @@ class PageManager {
       hint: page.prompt?.hint || this.defaultPromptHint,
       choices: pageActions,
       initial: options.selectedAction,
+      onState: ({ aborted }: { value: string; aborted: boolean }) => {
+        // We can't do this because there is no way to differentiate between Ctrl+C and Esc.
+        // https://github.com/terkelg/prompts/issues/252
+        // if (aborted) this.exit()
+      },
     }).then(({ action }: { action: PageAction }) => {
       const selectedAction = pageActions?.findIndex((a) => a.value === action)
 
@@ -262,13 +268,21 @@ class PageManager {
       if (is.undefined(action)) return this.navigateBack()
       // If the action is `null`, do nothing
       if (is.null_(action)) return refresh(selectedAction)
-      // Use a custom function (if present)
-      if (is.function_(action)) return action()
       // If a page ID is provided, navigate to it
       if (is.string(action))
         return navigateOrCatch(action, { updateHistory: selectedAction })
+      // Use a custom function (if present)
+      if (is.function_(action)) {
+        let errorMessage
+        try {
+          action()
+        } catch (error) {
+          errorMessage = `Failed to execute menu item "${pageActions[selectedAction].title}": ${error}`
+        }
+        return refresh(selectedAction, errorMessage)
+      }
       // If a page ID with parameters is provided, navigate to it
-      if (is.object(action)) {
+      if (is.plainObject(action)) {
         if (Object.keys(action).length > 1)
           throw new Error(
             "You can only specify a single page ID when using the page-parameters object syntax."
@@ -284,15 +298,16 @@ class PageManager {
   }
 
   navigateBack(errorMessage?: string) {
+    if (this.shouldExit) return
+
     // Remove the last history item
     this.history.pop()
     this.breadcrumbs.pop()
 
     // Navigate to the (new) last history item,
-    // or do nothing if there are no items left
+    // or exit if there are no items left
     const prevHistoryItem = this.getLastHistoryItem()
-    if (!prevHistoryItem) return
-    console.log("s")
+    if (!prevHistoryItem) return this.exit()
     this.navigateTo(prevHistoryItem.pageId, {
       updateHistory: false,
       errorMessage,
@@ -306,6 +321,12 @@ class PageManager {
     if (!this.initialPage)
       throw new Error("Set an initialPage before calling init()!")
     this.navigateTo(this.initialPage)
+  }
+
+  exit() {
+    // Show the terminal cursor
+    process.stdout.write("\x1B[?25h")
+    this.shouldExit = true
   }
 
   async promptOrBack(options: prompts.PromptObject) {
@@ -358,16 +379,16 @@ function generateAccountsList() {
   const actions: PageActionChoice[] = []
 
   accountsDatabase.forEach((account) => {
-    let accountListItem =
-      `${account.name}` +
-      (account.aliases ? ` (${account.aliases.join(", ")})` : "")
     actions.push({
-      title: accountListItem,
+      title: account.name,
       value: {
         accountInfo: {
           account,
         },
       },
+      description: account.aliases
+        ? `AKA: ` + account.aliases.join(", ")
+        : undefined,
     })
   })
 
