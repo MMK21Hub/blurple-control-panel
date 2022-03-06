@@ -392,7 +392,7 @@ function generateAccountsList() {
       title: accountListItem,
       value: {
         accountInfo: {
-          accountId: account,
+          account,
         },
       },
     })
@@ -401,15 +401,22 @@ function generateAccountsList() {
   return actions
 }
 
+function accountOrThrow(o: unknown): asserts o is LocalAccount {
+  assert.object(o)
+  assert.string(o.name)
+  assert.string(o.id)
+  assert.string(o.token)
+  if (o.aliases) {
+    assert.array(o.aliases)
+    o.aliases.forEach(assert.string)
+  }
+}
+
 const showAccountInfo: Page["beforePrompt"] = (
   pm: PageManager,
-  { parameters: { pageId } }
+  { parameters: { account } }
 ) => {
-  assert.string(pageId)
-
-  const account = getAccountFromDatabase(pageId)
-  if (!account)
-    throw new Error("Cannot show information for a non-existent account")
+  accountOrThrow(account)
 
   console.clear()
   console.log(chalk.bold(account.name))
@@ -420,8 +427,6 @@ const showAccountInfo: Page["beforePrompt"] = (
   console.log(chalk.cyan("User ID: ") + account.id)
   console.log(chalk.cyan("Token:   ") + sanitizeToken(account.token))
   console.log()
-
-  return actionPrompt({ Nope: () => {} })
 }
 
 async function actionPrompt(
