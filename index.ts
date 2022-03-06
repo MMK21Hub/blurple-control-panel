@@ -426,7 +426,7 @@ new PageManager({
       actions: generateAccountsList,
       prompt: {
         message: "Accounts",
-        hint: "Select an account to view info, or hit esc to go back",
+        hint: "Select an account to view info, or hit Esc to go back",
       },
     },
     accountInfo: {
