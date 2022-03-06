@@ -44,7 +44,11 @@ class DiscordClient {
   }
 }
 
-type PageAction = string | (() => void) | null | Record<string, unknown>
+type PageAction =
+  | string
+  | (() => void)
+  | null
+  | Record<string, Record<string, unknown>>
 
 interface PageActionChoice extends prompts.Choice {
   value: PageAction
@@ -99,6 +103,14 @@ class HistoryItem<States = {}> {
     this.pageParameters = options.pageParameters
     this.selectedPromptIndex = options.selectedPromptIndex
   }
+}
+
+interface NavigationOptions {
+  updateHistory?: boolean | number
+  params?: Record<string, unknown>
+  state?: Record<string, unknown>
+  selectedAction?: number
+  errorMessage?: string
 }
 
 class PageManager {
@@ -162,16 +174,32 @@ class PageManager {
     this.initialPage = pageId
   }
 
-  navigateTo(
-    pageId: string,
-    options: {
-      updateHistory?: boolean | number
-      params?: Record<string, unknown>
-      state?: Record<string, unknown>
+  navigateTo(pageId: string, options: NavigationOptions = {}) {
+    const refresh = (selectedAction: number, errorMessage?: string) => {
+      const newOptions = options
+      newOptions.errorMessage = errorMessage
+      newOptions.updateHistory = false
+      newOptions.selectedAction = selectedAction
+      this.navigateTo(pageId, options)
+    }
+
+    const navigateOrCatch = (
+      page: string,
+      options: NavigationOptions,
       selectedAction?: number
-      errorMessage?: string
-    } = {}
-  ) {
+    ) => {
+      try {
+        this.navigateTo(page, options)
+      } catch (error) {
+        refresh(
+          is.number(options.updateHistory)
+            ? options.updateHistory
+            : selectedAction || 0,
+          `Failed to navigate to page "${page}"`
+        )
+      }
+    }
+
     options.params ??= {}
     options.state ??= {}
     // Required for TypeScript to admit that this could still be `false`
@@ -218,19 +246,25 @@ class PageManager {
 
       // Go back to the previous page if the user pressed esc
       if (is.undefined(action)) return this.navigateBack()
+      // If the action is `null`, do nothing
+      if (is.null_(action)) return refresh(selectedAction)
       // Use a custom function (if present)
       if (is.function_(action)) return action()
       // If a page ID is provided, navigate to it
-      if (is.string(action)) {
-        try {
-          this.navigateTo(action, { updateHistory: selectedAction })
-        } catch (error) {
-          options.errorMessage = `Failed to navigate to page "${action}"`
-          options.updateHistory = false
-          options.selectedAction = selectedAction
-          this.navigateTo(pageId, options)
+      if (is.string(action))
+        return navigateOrCatch(action, { updateHistory: selectedAction })
+      // If a page ID with parameters is provided, navigate to it
+      if (is.object(action)) {
+        if (Object.keys(action).length > 1)
+          throw new Error(
+            "You can only specify a single page ID when using the page-parameters object syntax."
+          )
+        for (const targetPageId in action) {
+          return navigateOrCatch(targetPageId, {
+            updateHistory: selectedAction,
+            params: action[targetPageId],
+          })
         }
-        return
       }
     })
   }
@@ -412,6 +446,7 @@ new PageManager({
       title: "Blurple Control Panel",
       actions: PageManager.resolvePageActions({
         "View accounts": "accountsList",
+        Tests: "tests",
       }),
     },
     accountsList: {
@@ -420,6 +455,20 @@ new PageManager({
         message: "Accounts",
         hint: "Select an account to view info, or hit esc to go back",
       },
+    },
+    tests: {
+      actions: PageManager.resolvePageActions({
+        "Page with no parameters": "testPage",
+        "Page with some params": {
+          testPage: {
+            count: 1,
+          },
+        },
+      }),
+    },
+    testPage: {
+      beforePrompt: (pm, { parameters }) => console.log(parameters),
+      actions: [],
     },
   },
   initialPage: "main",
