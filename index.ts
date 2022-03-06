@@ -55,8 +55,8 @@ interface PageActionChoice extends prompts.Choice {
 }
 
 interface Page<
-  P extends Record<string, unknown> = {},
-  S extends Record<string, unknown> = {}
+  P extends Record<string, unknown> = Record<string, unknown>,
+  S extends Record<string, unknown> = Record<string, unknown>
 > {
   beforePrompt?: (
     pageManager: PageManager,
@@ -111,6 +111,15 @@ interface NavigationOptions {
   state?: Record<string, unknown>
   selectedAction?: number
   errorMessage?: string
+}
+
+class PageNotFoundError extends Error {
+  pageId
+
+  constructor(pageId: string, message?: string) {
+    super(message)
+    this.pageId = pageId
+  }
 }
 
 class PageManager {
@@ -191,11 +200,16 @@ class PageManager {
       try {
         this.navigateTo(page, options)
       } catch (error) {
+        const message =
+          error instanceof PageNotFoundError
+            ? "Page not found: " + page
+            : `Failed to navigate to page "${page}": ${error}`
+
         refresh(
           is.number(options.updateHistory)
             ? options.updateHistory
             : selectedAction || 0,
-          `Failed to navigate to page "${page}"`
+          message
         )
       }
     }
@@ -207,7 +221,8 @@ class PageManager {
 
     const page = this.pages.get(pageId)
     if (!page)
-      throw new Error(
+      throw new PageNotFoundError(
+        pageId,
         `Could not find page: ${pageId} (available pages: ${this.pages.size})`
       )
 
@@ -223,10 +238,14 @@ class PageManager {
 
     if (options.errorMessage) console.log(chalk.red(options.errorMessage))
 
-    page.beforePrompt?.(this, {
-      parameters: options.params,
-      state: options.state,
-    })
+    try {
+      page.beforePrompt?.(this, {
+        parameters: options.params,
+        state: options.state,
+      })
+    } catch (error) {
+      console.log(chalk.red(`Failed to run beforePrompt(): ${error}`))
+    }
 
     if (is.number(options.updateHistory))
       this.getLastHistoryItem().selectedPromptIndex = options.updateHistory
@@ -369,14 +388,26 @@ function generateAccountsList() {
     let accountListItem =
       `${account.name}` +
       (account.aliases ? ` (${account.aliases.join(", ")})` : "")
-    actions.push({ title: accountListItem, value: account.id })
+    actions.push({
+      title: accountListItem,
+      value: {
+        accountInfo: {
+          accountId: account,
+        },
+      },
+    })
   })
 
   return actions
 }
 
-function showAccountInfo(id: string) {
-  const account = getAccountFromDatabase(id)
+const showAccountInfo: Page["beforePrompt"] = (
+  pm: PageManager,
+  { parameters: { pageId } }
+) => {
+  assert.string(pageId)
+
+  const account = getAccountFromDatabase(pageId)
   if (!account)
     throw new Error("Cannot show information for a non-existent account")
 
@@ -455,6 +486,10 @@ new PageManager({
         message: "Accounts",
         hint: "Select an account to view info, or hit esc to go back",
       },
+    },
+    accountInfo: {
+      actions: PageManager.resolvePageActions({ Nope: () => {} }),
+      beforePrompt: showAccountInfo,
     },
     tests: {
       actions: PageManager.resolvePageActions({
