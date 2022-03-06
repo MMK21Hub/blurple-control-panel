@@ -468,7 +468,9 @@ new PageManager({
     },
     testPage: {
       beforePrompt: (pm, { parameters }) => console.log(parameters),
-      actions: [],
+      actions: PageManager.resolvePageActions({
+        Nothing: null,
+      }),
     },
   },
   initialPage: "main",
