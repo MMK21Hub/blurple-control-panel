@@ -48,7 +48,8 @@ type PageAction =
   | string
   | (() => void)
   | null
-  | Record<string, Record<string, unknown>>
+  | [string, Record<string, unknown>?]
+  | Page
 
 interface PageActionChoice extends prompts.Choice {
   value: PageAction
@@ -189,7 +190,7 @@ class PageManager {
 
     const navigateOrCatch = (
       page: string,
-      options: NavigationOptions,
+      options: NavigationOptions = {},
       selectedAction?: number
     ) => {
       try {
@@ -282,17 +283,18 @@ class PageManager {
         return refresh(selectedAction, errorMessage)
       }
       // If a page ID with parameters is provided, navigate to it
-      if (is.plainObject(action)) {
-        if (Object.keys(action).length > 1)
-          throw new Error(
-            "You can only specify a single page ID when using the page-parameters object syntax."
-          )
-        for (const targetPageId in action) {
-          return navigateOrCatch(targetPageId, {
-            updateHistory: selectedAction,
-            params: action[targetPageId],
-          })
-        }
+      if (is.array(action)) {
+        const [pageId, params] = action
+        return navigateOrCatch(pageId, {
+          updateHistory: selectedAction,
+          params,
+        })
+      }
+      if (is.object(action)) {
+        const inlinePageId = `${pageId}/${selectedAction}`
+        action.title ??= pageActions[selectedAction].title
+        this.pages.set(inlinePageId, action)
+        return navigateOrCatch(inlinePageId, { updateHistory: selectedAction })
       }
     })
   }
@@ -381,11 +383,12 @@ function generateAccountsList() {
   accountsDatabase.forEach((account) => {
     actions.push({
       title: account.name,
-      value: {
-        accountInfo: {
+      value: [
+        "accountInfo",
+        {
           account,
         },
-      },
+      ],
       description: account.aliases
         ? `AKA: ` + account.aliases.join(", ")
         : undefined,
@@ -448,11 +451,17 @@ new PageManager({
     },
     tests: {
       actions: PageManager.resolvePageActions({
-        "Page with no parameters": "testPage",
-        "Page with some params": {
-          testPage: {
+        "Page with no parameters": ["testPage"],
+        "Page with some params": [
+          "testPage",
+          {
             count: 1,
           },
+        ],
+        'Inline ("anonymous") page': {
+          actions: PageManager.resolvePageActions({
+            Nothing: null,
+          }),
         },
       }),
     },
