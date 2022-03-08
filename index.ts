@@ -238,7 +238,9 @@ class PageManager {
     console.clear()
 
     if (options.updateHistory !== false)
-      this.breadcrumbs.push(page.title || pageId)
+      this.breadcrumbs.push(
+        page.title || (is.number(page.step) ? `Step ${page.step + 1}` : pageId)
+      )
     this.showBreadcrumbs()
 
     if (options.errorMessage) console.log(chalk.red(options.errorMessage))
