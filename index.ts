@@ -66,6 +66,8 @@ interface Page<
     hint?: string
   }
   actions?: PageActionChoice[] | (() => PageActionChoice[])
+  steps?: Page[]
+  step?: number
 }
 
 interface PageManagerOptions {
@@ -167,8 +169,15 @@ class PageManager {
     this.history.push(historyItem)
   }
 
-  getLastHistoryItem() {
+  getLastHistoryItem(): HistoryItem | undefined {
     return this.history.slice(-1)[0]
+  }
+
+  setLastPromptIndex(index: number) {
+    const lastItem = this.getLastHistoryItem()
+    if (!lastItem) return null
+    lastItem.selectedPromptIndex = index
+    return lastItem
   }
 
   setInitialPage(pageId: string) {
@@ -245,12 +254,18 @@ class PageManager {
     }
 
     if (is.number(options.updateHistory))
-      this.getLastHistoryItem().selectedPromptIndex = options.updateHistory
+      this.setLastPromptIndex(options.updateHistory)
     if (options.updateHistory !== false)
       this.appendHistoryItem(pageId, options.params)
+
+    if (page.steps)
+      return this.navigateThroughSteps(page.steps, pageId).then(() => {
+        this.navigateBack()
+      })
+
     if (!pageActions) return
 
-    prompts({
+    return prompts({
       name: "action",
       type: "select",
       message: page.prompt?.message || page.title || this.defaultPromptMessage,
@@ -299,6 +314,15 @@ class PageManager {
     })
   }
 
+  async navigateThroughSteps(steps: Page[], basePage: string) {
+    for (const [i, step] of steps.entries()) {
+      const stepPageId = `${basePage}/step-${i}`
+      step.step = i
+      this.pages.set(stepPageId, step)
+      await this.navigateTo(stepPageId)
+    }
+  }
+
   navigateBack(errorMessage?: string) {
     if (this.shouldExit) return
 
@@ -307,15 +331,22 @@ class PageManager {
     this.breadcrumbs.pop()
 
     // Navigate to the (new) last history item,
-    // or exit if there are no items left
-    const prevHistoryItem = this.getLastHistoryItem()
-    if (!prevHistoryItem) return this.exit()
-    this.navigateTo(prevHistoryItem.pageId, {
+    // or exit if there are no items left.
+    let targetHistoryItem = this.getLastHistoryItem()
+    if (!targetHistoryItem) return this.exit()
+    // Look for the last history item that isn't a multi-step page
+    while (this.pages.get(targetHistoryItem?.pageId)?.steps) {
+      this.history.pop()
+      this.breadcrumbs.pop()
+      targetHistoryItem = this.getLastHistoryItem()
+      if (!targetHistoryItem) return this.exit()
+    }
+    this.navigateTo(targetHistoryItem.pageId, {
       updateHistory: false,
       errorMessage,
-      params: prevHistoryItem.pageParameters,
-      selectedAction: prevHistoryItem.selectedPromptIndex,
-      state: prevHistoryItem.state,
+      params: targetHistoryItem.pageParameters,
+      selectedAction: targetHistoryItem.selectedPromptIndex,
+      state: targetHistoryItem.state,
     })
   }
 
@@ -435,6 +466,7 @@ new PageManager({
       title: "Blurple Control Panel",
       actions: PageManager.resolvePageActions({
         "View accounts": "accountsList",
+        "Add new account": "addAccount",
         Tests: "tests",
       }),
     },
@@ -449,6 +481,14 @@ new PageManager({
       actions: PageManager.resolvePageActions({ Nope: null }),
       beforePrompt: showAccountInfo,
     },
+    addAccount: {
+      steps: [
+        {
+          beforePrompt: console.log,
+        },
+      ],
+    },
+
     tests: {
       actions: PageManager.resolvePageActions({
         "Page with no parameters": ["testPage"],
