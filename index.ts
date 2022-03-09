@@ -123,6 +123,7 @@ class PageManager {
   history: HistoryItem[] = []
   breadcrumbs: string[] = []
   pages: Map<string, Page>
+  latestPageId?: string
   initialPage?: string
   defaultPromptMessage
   defaultPromptHint
@@ -264,6 +265,8 @@ class PageManager {
 
     if (!pageActions) return
 
+    this.latestPageId = pageId
+
     return prompts({
       name: "action",
       type: "select",
@@ -279,6 +282,8 @@ class PageManager {
     }).then(({ action }: { action: PageAction }) => {
       const selectedAction = pageActions?.findIndex((a) => a.value === action)
 
+      // Ignore any 'stale' promise resolutions
+      if (pageId !== this.latestPageId) return
       // Go back to the previous page if the user pressed esc
       if (is.undefined(action)) {
         this.navigateBack()
