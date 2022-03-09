@@ -280,11 +280,12 @@ class PageManager {
       const selectedAction = pageActions?.findIndex((a) => a.value === action)
 
       // Go back to the previous page if the user pressed esc
-      if (is.undefined(action)) return this.navigateBack()
+      if (is.undefined(action)) {
+        this.navigateBack()
+        return null
+      }
       // If the action is `null`, do nothing
-      if (is.null_(action))
-        //
-        return refresh(selectedAction)
+      if (is.null_(action)) return refresh(selectedAction)
       // If a page ID is provided, navigate to it
       if (is.string(action))
         return navigateOrCatch(action, { updateHistory: selectedAction })
@@ -321,7 +322,8 @@ class PageManager {
       const stepPageId = `${basePage}/step-${stepNum}`
       step.step = stepNum
       this.pages.set(stepPageId, step)
-      await this.navigateTo(stepPageId)
+      const response = await this.navigateTo(stepPageId)
+      if (response === null) break
     }
   }
 
