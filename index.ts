@@ -260,10 +260,7 @@ class PageManager {
     if (options.updateHistory !== false)
       this.appendHistoryItem(pageId, options.params)
 
-    if (page.steps)
-      return this.navigateThroughSteps(page.steps, pageId).then(() => {
-        this.navigateBack()
-      })
+    if (page.steps) return this.navigateThroughSteps(page.steps, pageId)
 
     if (!pageActions) return
 
@@ -486,7 +483,8 @@ new PageManager({
     addAccount: {
       steps: [
         {
-          beforePrompt: console.log,
+          // beforePrompt: console.log,
+          actions: PageManager.resolvePageActions({ Nope: null }),
         },
       ],
     },
